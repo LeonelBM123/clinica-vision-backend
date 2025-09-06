@@ -3,6 +3,7 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
 from .models import *
 # from .models import Usuario, Rol, Medico, Especialidad
+# from .models import Usuario, Rol, Medico, Especialidad
 
 class RolSerializer(serializers.ModelSerializer):
     class Meta:
@@ -36,6 +37,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
         # Hashear la contraseña si se proporciona
         if password:
             validated_data['password'] = make_password(password)
+        
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
