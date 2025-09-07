@@ -80,10 +80,10 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',  # Nombre de la base de datos (en Supabase suele ser "postgres")
-        'USER': 'postgres',  # Usuario por defecto, salvo que hayas creado otro
-        'PASSWORD': 'si2-clinica-vision',  # Copia el password del panel
-        'HOST': 'db.nssstkriilpngbfyzgtt.supabase.co',  # Host de Supabase
+        'NAME': 'clinica-vision',  # Nombre de la base de datos (en Supabase suele ser "postgres")
+        'USER': 'neondb_owner',  # Usuario por defecto, salvo que hayas creado otro
+        'PASSWORD': 'npg_nPsh6v3fyjRK',  # Copia el password del panel
+        'HOST': 'ep-cool-glade-ac6kkkjf-pooler.sa-east-1.aws.neon.tech',  # Host de Supabase
         'PORT': '5432',  # El puerto estándar
     }
 }
