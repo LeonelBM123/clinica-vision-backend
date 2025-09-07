@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
-from .models import Usuario, Rol, Medico, Especialidad
+from .models import Usuario, Rol, Medico, Especialidad, PatologiasO
 
 class RolSerializer(serializers.ModelSerializer):
     class Meta:
@@ -137,3 +137,8 @@ class MedicoSerializer(serializers.ModelSerializer):
             medico.especialidades.set(especialidades_data)
         
         return medico
+
+class PatologiasOSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PatologiasO
+        fields = '__all__'

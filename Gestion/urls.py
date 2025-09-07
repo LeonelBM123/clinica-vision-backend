@@ -7,6 +7,7 @@ router.register(r'usuarios', views.UsuarioViewSet)
 router.register(r'roles', views.RolViewSet)
 router.register(r'medicos', views.MedicoViewSet)
 router.register(r'especialidades', views.EspecialidadViewSet)
+router.register(r'patologias', views.PatologiasOViewSet)
 
 urlpatterns = [
     path('api/', include(router.urls)),

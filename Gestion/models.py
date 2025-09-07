@@ -156,3 +156,49 @@ class Medico(models.Model):
         verbose_name = "Médico"
         verbose_name_plural = "Médicos"
         ordering = ['medico__nombre']
+
+class PatologiasO(models.Model):
+    
+    gravedad_opciones = [
+        ('LEVE', 'Leve'),
+        ('MODERADA', 'Moderada'),
+        ('GRAVE', 'Grave'),
+        ('CRITICA', 'Critica'),    
+    ]
+    
+    nombre = models.CharField(
+        max_length=120,
+        unique=True,
+        help_text="Nombre oficial de la patología") 
+    
+    alias = models.CharField(
+        max_length=120,
+        blank=True,
+        help_text="Alias o nombres comunes de la patología",)
+    
+    descripcion = models.TextField(
+        blank=True,
+        help_text="Descripción de la patología")
+    
+    gravedad = models.CharField(
+        max_length=50,
+        choices=gravedad_opciones)
+    
+    estado = models.BooleanField(
+        default=True,
+        help_text= "Activo = True, Eliminado = False")
+    
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_modificacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Patologia"
+        verbose_name_plural = "Patologias"
+        ordering = ['nombre']
+        indexes = [
+            models.Index(fields=['nombre']),
+            models.Index(fields=['gravedad']),
+        ]
+    
+    def __str__(self):
+        return self.nombre

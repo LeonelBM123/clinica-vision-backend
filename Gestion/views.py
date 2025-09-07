@@ -3,8 +3,8 @@ from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
-from .models import Usuario, Rol, Medico, Especialidad
-from .serializers import UsuarioSerializer, RolSerializer, MedicoSerializer, EspecialidadSerializer
+from .models import Usuario, Rol, Medico, Especialidad, PatologiasO
+from .serializers import UsuarioSerializer, RolSerializer, MedicoSerializer, EspecialidadSerializer, PatologiasOSerializer
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
 # viewsets.ModelViewSet automáticamente crea los CRUD endpoints:
@@ -120,3 +120,38 @@ class MedicoViewSet(viewsets.ModelViewSet):
     # DELETE /api/medicos/{id}/ - Elimina médico
 
 
+class PatologiasOViewSet(viewsets.ModelViewSet):
+    queryset = PatologiasO.objects.all()  
+    serializer_class = PatologiasOSerializer
+
+    def get_queryset(self):
+        # Por defecto, solo activos
+        if self.action == 'list':
+            return PatologiasO.objects.filter(estado=True)
+        return PatologiasO.objects.all()
+
+    def perform_destroy(self, instance):
+        # Soft delete: solo cambia estado a False y actualiza fecha_modificacion
+        instance.estado = False
+        instance.save()
+    
+    @action(detail=False, methods=['get'])
+    def eliminadas(self, request):
+        eliminadas = PatologiasO.objects.filter(estado=False)
+        serializer = self.get_serializer(eliminadas, many=True)
+        return Response(serializer.data)    
+    
+    @action(detail=True, methods=['post'])
+    def restaurar(self, request, pk=None):
+        patologia = self.get_object()
+        patologia.estado = True
+        patologia.save()
+        serializer = self.get_serializer(patologia)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    # GET /api/patologias/ (listar)
+    # POST /api/patologias/ (crear)
+    # GET /api/patologias/{id}/ (detalle)
+    # PUT/PATCH /api/patologias/{id}/ (editar)
+    # DELETE /api/patologias/{id}/ (soft delete)
+    # GET /api/patologias/eliminadas/ (listar eliminadas)
