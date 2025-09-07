@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework.authtoken',
     'django_extensions',
     'django',
     'Gestion',
@@ -79,11 +80,11 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'ClearVision',   
-        'USER': 'postgres',      
-        'PASSWORD': '',          
-        'HOST': 'localhost',
-        'PORT': '5432',          
+        'NAME': 'postgres',  # Nombre de la base de datos (en Supabase suele ser "postgres")
+        'USER': 'postgres',  # Usuario por defecto, salvo que hayas creado otro
+        'PASSWORD': 'si2-clinica-vision',  # Copia el password del panel
+        'HOST': 'db.nssstkriilpngbfyzgtt.supabase.co',  # Host de Supabase
+        'PORT': '5432',  # El puerto estándar
     }
 }
 

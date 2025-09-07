@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
+from django.contrib.auth.models import User
 from .models import Usuario, Rol, Medico, Especialidad
 
 class RolSerializer(serializers.ModelSerializer):
@@ -34,13 +35,13 @@ class UsuarioSerializer(serializers.ModelSerializer):
         # Hashear la contraseña si se proporciona
         if password:
             validated_data['password'] = make_password(password)
-        
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
         return instance
 
 class MedicoSerializer(serializers.ModelSerializer):
+
     # Campos para crear usuario nuevo
     nombre_usuario = serializers.CharField(write_only=True, required=False)
     correo_usuario = serializers.EmailField(write_only=True, required=False)
