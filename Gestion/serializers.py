@@ -37,7 +37,6 @@ class UsuarioSerializer(serializers.ModelSerializer):
         # Hashear la contraseña si se proporciona
         if password:
             validated_data['password'] = make_password(password)
-        
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
