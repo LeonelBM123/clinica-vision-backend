@@ -7,6 +7,8 @@ from .models import Usuario, Rol, Medico, Especialidad
 from .serializers import UsuarioSerializer, RolSerializer, MedicoSerializer, EspecialidadSerializer
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import permission_classes
 # viewsets.ModelViewSet automáticamente crea los CRUD endpoints:
 
 class RolViewSet(viewsets.ModelViewSet):
@@ -120,3 +122,8 @@ class MedicoViewSet(viewsets.ModelViewSet):
     # DELETE /api/medicos/{id}/ - Elimina médico
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def logout_view(request):
+    request.user.auth_token.delete()
+    return Response({"message": "Cierre de sesion exitoso"}, status=status.HTTP_200_OK)
