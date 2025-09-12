@@ -202,3 +202,76 @@ class PatologiasO(models.Model):
     
     def __str__(self):
         return self.nombre
+    
+class Paciente(models.Model):
+    paciente = models.OneToOneField(
+        Usuario,
+        on_delete=models.CASCADE,  
+        primary_key=True,
+        related_name='paciente_profile'
+    )
+    numero_historia_clinica = models.CharField(
+        max_length=64,
+        unique=True,
+        verbose_name="Número de historia clínica"
+    )
+    
+    alergias_medicamentos = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Alergias a medicamentos"
+    )
+    antecedentes_oculares = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Antecedentes oftalmológicos"
+    )
+    agudeza_visual_derecho = models.CharField(
+        max_length=10,
+        blank=True,
+        null=True,
+        verbose_name="Agudeza visual ojo derecho"
+    )
+    agudeza_visual_izquierdo = models.CharField(
+        max_length=10,
+        blank=True,
+        null=True,
+        verbose_name="Agudeza visual ojo izquierdo"
+    )
+    presion_intraocular_derecho = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name="Presión intraocular ojo derecho"
+    )
+    presion_intraocular_izquierdo = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name="Presión intraocular ojo izquierdo"
+    )
+    diagnostico_ocular = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Diagnóstico ocular"
+    )
+    estado = models.BooleanField(
+        default=True,
+        help_text="Activo = True, Eliminado = False"
+    )
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_modificacion = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.paciente.nombre} - HC: {self.numero_historia_clinica}"
+
+    class Meta:
+        verbose_name = "Paciente"
+        verbose_name_plural = "Pacientes"
+        ordering = ['paciente__nombre']
+        indexes = [
+            models.Index(fields=['estado']),
+            models.Index(fields=['numero_historia_clinica']),
+        ]

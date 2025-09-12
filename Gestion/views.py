@@ -3,8 +3,8 @@ from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
-from .models import Usuario, Rol, Medico, Especialidad, PatologiasO
-from .serializers import UsuarioSerializer, RolSerializer, MedicoSerializer, EspecialidadSerializer, PatologiasOSerializer
+from .models import Usuario, Rol, Medico, Especialidad, PatologiasO,Paciente
+from .serializers import UsuarioSerializer, RolSerializer, MedicoSerializer, EspecialidadSerializer, PatologiasOSerializer,PacienteSerializer
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
 # viewsets.ModelViewSet automáticamente crea los CRUD endpoints:
@@ -155,3 +155,34 @@ class PatologiasOViewSet(viewsets.ModelViewSet):
     # PUT/PATCH /api/patologias/{id}/ (editar)
     # DELETE /api/patologias/{id}/ (soft delete)
     # GET /api/patologias/eliminadas/ (listar eliminadas)
+
+class PacienteViewSet(viewsets.ModelViewSet):
+    queryset = Paciente.objects.all()
+    serializer_class = PacienteSerializer
+    
+    def get_queryset(self):
+        # Por defecto, solo pacientes activos
+        if self.action == 'list':
+            return Paciente.objects.filter(estado=True)
+        return Paciente.objects.all()
+
+    def perform_destroy(self, instance):
+        # Soft delete: solo cambiar estado a False
+        instance.estado = False
+        instance.save()
+
+    @action(detail=False, methods=['get'])
+    def eliminados(self, request):
+        eliminados = Paciente.objects.filter(estado=False)
+        serializer = self.get_serializer(eliminados, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def restaurar(self, request, pk=None):
+
+        paciente = self.get_object()
+        paciente.estado = True
+        paciente.save()
+        serializer = self.get_serializer(paciente)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
