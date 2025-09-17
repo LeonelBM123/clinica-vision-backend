@@ -5,6 +5,8 @@ from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from .models import *
 from .serializers import *
+# from .models import Usuario, Rol, Medico, Especialidad
+# from .serializers import UsuarioSerializer, RolSerializer, MedicoSerializer, EspecialidadSerializer
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
 from rest_framework.permissions import IsAuthenticated,AllowAny

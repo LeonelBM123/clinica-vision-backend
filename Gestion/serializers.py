@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
 from .models import *
+# from .models import Usuario, Rol, Medico, Especialidad
 
 class RolSerializer(serializers.ModelSerializer):
     class Meta:
