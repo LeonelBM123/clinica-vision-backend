@@ -55,17 +55,9 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ALLOWED_HOSTS = ['*']
-CORS_ALLOW_ALL_ORIGINS = True
-
-# 👇 Permitir todos los métodos (POST, GET, OPTIONS, PUT, DELETE, etc.)
-CORS_ALLOW_METHODS = [
-    "DELETE",
-    "GET",
-    "OPTIONS",
-    "PATCH",
-    "POST",
-    "PUT",
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "https://clincavisionex.netlify.app"
 ]
 
 # 👇 Permitir todos los headers
