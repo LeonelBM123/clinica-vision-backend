@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
-from .models import Usuario, Rol, Medico, Especialidad, PatologiasO,Paciente
+from .models import *
 
 class RolSerializer(serializers.ModelSerializer):
     class Meta:
@@ -143,28 +143,33 @@ class PatologiasOSerializer(serializers.ModelSerializer):
         model = PatologiasO
         fields = '__all__'
 
+
+class ExamenOcularSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExamenOcular
+        fields = '__all__'  # Serializa todos los campos del examen ocular
+
+
 class PacienteSerializer(serializers.ModelSerializer):
-    usuario = serializers.PrimaryKeyRelatedField(queryset=Usuario.objects.all())
+    # Incluye los exámenes relacionados como nested serializer
+    examenes = ExamenOcularSerializer(many=True,required=False)
 
     class Meta:
         model = Paciente
         fields = [
-            'id',  # ahora el paciente tiene su propio ID
-            'usuario',
+            'id',
             'numero_historia_clinica',
-            'alergias_medicamentos',
+            'nombre',
+            'apellido',
+            'fecha_nacimiento',
+            'alergias',
             'antecedentes_oculares',
-            'agudeza_visual_derecho',
-            'agudeza_visual_izquierdo',
-            'presion_intraocular_derecho',
-            'presion_intraocular_izquierdo',
-            'diagnostico_ocular',
             'estado',
             'fecha_creacion',
             'fecha_modificacion',
+            'examenes',  # incluye exámenes
         ]
         read_only_fields = ['estado', 'fecha_creacion', 'fecha_modificacion']
+    
 
-    def create(self, validated_data):
-        paciente = Paciente.objects.create(**validated_data, estado=True)
-        return paciente
+        

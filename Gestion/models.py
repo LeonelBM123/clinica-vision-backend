@@ -204,78 +204,31 @@ class PatologiasO(models.Model):
         return self.nombre
     
 class Paciente(models.Model):
-    id = models.AutoField(primary_key=True)  # ID propio del paciente
-    usuario = models.OneToOneField(
-        Usuario,
-        on_delete=models.SET_NULL,
-        null=True,      # permite que el usuario se borre sin eliminar al paciente
-        blank=True,
-        related_name='paciente_profile'
-    )
-    numero_historia_clinica = models.CharField(
-        max_length=64,
-        unique=True,
-        blank=False,
-        null=False,
-        verbose_name="Número de historia clínica"
-    )
-    
-    alergias_medicamentos = models.TextField(
-        blank=True,
-        null=True,
-        verbose_name="Alergias a medicamentos"
-    )
-    antecedentes_oculares = models.TextField(
-        blank=False,
-        null=False,
-        verbose_name="Antecedentes oftalmológicos"
-    )
-    agudeza_visual_derecho = models.CharField(
-        max_length=10,
-        blank=False,
-        null=False,
-        verbose_name="Agudeza visual ojo derecho"
-    )
-    agudeza_visual_izquierdo = models.CharField(
-        max_length=10,
-        blank=False,
-        null=False,
-        verbose_name="Agudeza visual ojo izquierdo"
-    )
-    presion_intraocular_derecho = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        blank=False,
-        null=False,
-        verbose_name="Presión intraocular ojo derecho"
-    )
-    presion_intraocular_izquierdo = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        blank=False,
-        null=False,
-        verbose_name="Presión intraocular ojo izquierdo"
-    )
-    diagnostico_ocular = models.TextField(
-        blank=True,
-        null=True,
-        verbose_name="Diagnóstico ocular"
-    )
-    estado = models.BooleanField(
-        default=True,
-        help_text="Activo = True, Eliminado = False"
-    )
+    numero_historia_clinica = models.CharField(max_length=64, unique=True)
+    nombre = models.CharField(max_length=100)
+    apellido = models.CharField(max_length=100)
+    fecha_nacimiento = models.DateField(null=True, blank=True)
+    alergias = models.TextField(blank=True)
+    antecedentes_oculares = models.TextField(blank=True)
+    estado = models.BooleanField(default=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_modificacion = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.paciente.nombre} - HC: {self.numero_historia_clinica}"
+        return f"{self.nombre} {self.apellido} ({self.numero_historia_clinica})"
 
-    class Meta:
-        verbose_name = "Paciente"
-        verbose_name_plural = "Pacientes"
-        ordering = ['usuario__nombre']
-        indexes = [
-            models.Index(fields=['estado']),
-            models.Index(fields=['numero_historia_clinica']),
-        ]
+
+class ExamenOcular(models.Model):
+    paciente = models.ForeignKey(Paciente, related_name='examenes', on_delete=models.CASCADE)
+ 
+    # Agudeza visual
+    agudeza_visual_derecho = models.TextField( blank=True)
+    agudeza_visual_izquierdo = models.TextField(blank=True)    
+    # Presión intraocular
+    presion_intraocular_derecho = models.FloatField(null=True, blank=True)
+    presion_intraocular_izquierdo = models.FloatField(null=True, blank=True)
+    # Diagnóstico
+    diagnostico_ocular = models.TextField(blank=True)
+    fecha = models.DateField(auto_now_add=True)  # Fecha del examen
+    def __str__(self):
+        return f"Examen {self.id} - {self.paciente.numero_historia_clinica}"

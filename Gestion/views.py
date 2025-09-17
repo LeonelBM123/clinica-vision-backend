@@ -3,10 +3,12 @@ from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
-from .models import Usuario, Rol, Medico, Especialidad, PatologiasO,Paciente
-from .serializers import UsuarioSerializer, RolSerializer, MedicoSerializer, EspecialidadSerializer, PatologiasOSerializer,PacienteSerializer
+from .models import *
+from .serializers import *
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
+from rest_framework.permissions import IsAuthenticated,AllowAny
+from rest_framework.decorators import permission_classes
 # viewsets.ModelViewSet automáticamente crea los CRUD endpoints:
 
 class RolViewSet(viewsets.ModelViewSet):
@@ -106,6 +108,9 @@ class UsuarioViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK
         )
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def logout(self, request):
+        return Response({"message": "Cierre de sesion exitoso"}, status=status.HTTP_200_OK)
             
 
 class MedicoViewSet(viewsets.ModelViewSet):
@@ -156,9 +161,12 @@ class PatologiasOViewSet(viewsets.ModelViewSet):
     # DELETE /api/patologias/{id}/ (soft delete)
     # GET /api/patologias/eliminadas/ (listar eliminadas)
 
+
+
 class PacienteViewSet(viewsets.ModelViewSet):
     queryset = Paciente.objects.all()
     serializer_class = PacienteSerializer
+
     def get_queryset(self):
         # Por defecto, solo pacientes activos
         if self.action == 'list':
@@ -178,10 +186,31 @@ class PacienteViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def restaurar(self, request, pk=None):
-
         paciente = self.get_object()
         paciente.estado = True
         paciente.save()
         serializer = self.get_serializer(paciente)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+def create(self, request, *args, **kwargs):
+    examenes_data = request.data.pop('examenes', None)  # 👈 usa el related_name
+    paciente_serializer = self.get_serializer(data=request.data)
+    paciente_serializer.is_valid(raise_exception=True)
+    paciente = paciente_serializer.save(estado=True)
+
+    # Guardar exámenes asociados
+    if examenes_data:
+        if isinstance(examenes_data, dict):
+            # Si mandas un solo examen
+            examenes_data = [examenes_data]
+
+        for examen_data in examenes_data:
+            examen_data['paciente'] = paciente.id
+            examen_serializer = ExamenOcularSerializer(data=examen_data)
+            examen_serializer.is_valid(raise_exception=True)
+            examen_serializer.save()
+
+    headers = self.get_success_headers(paciente_serializer.data)
+    return Response(paciente_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
 
