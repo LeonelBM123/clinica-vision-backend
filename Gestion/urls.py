@@ -9,7 +9,7 @@ router.register(r'medicos', views.MedicoViewSet)
 router.register(r'especialidades', views.EspecialidadViewSet)
 router.register(r'patologias', views.PatologiasOViewSet)
 router.register(r'pacientes', views.PacienteViewSet)
-
+router.register(r'bitacoras', views.BitacoraViewSet)
 urlpatterns = [
     path('api/', include(router.urls)),
     path('api/bitacora/', views.BitacoraListAPIView.as_view(), name='bitacora-list')

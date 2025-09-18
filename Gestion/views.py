@@ -152,6 +152,7 @@ class MedicoViewSet(viewsets.ModelViewSet):
     # Sobrescribir create (POST)
     def perform_create(self, serializer):
         medico = serializer.save()
+        
         actor = get_actor_usuario_from_request(self.request)
         log_action(
             request=self.request,
@@ -318,3 +319,14 @@ class BitacoraListAPIView(generics.ListAPIView):
             else:
                 qs = qs.filter(usuarionombre__icontains=usuario)
         return qs
+    
+class BitacoraViewSet(viewsets.ModelViewSet):
+    queryset = Bitacora.objects.all()
+    serializer_class = BitacoraSerializer
+
+# GET /api/roles/ - Lista todos los roles
+# POST /api/roles/ - Crea nuevo rol
+# GET /api/roles/{id}/ - Obtiene un rol
+# PUT /api/roles/{id}/ - Actualiza rol completo
+# PATCH /api/roles/{id}/ - Actualiza parcialmente
+# DELETE /api/roles/{id}/ - Elimina rol
