@@ -173,5 +173,14 @@ class PacienteSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['estado', 'fecha_creacion', 'fecha_modificacion']
     
+class BitacoraSerializer(serializers.ModelSerializer):
+    usuario = serializers.SerializerMethodField()
 
+    class Meta:
+        model = Bitacora
+        fields = ['id', 'usuario', 'accion', 'ip', 'objeto', 'extra', 'timestamp']
+
+    def get_usuario(self, obj):
+        # adapta según tu modelo Usuario: mostramos el nombre
+        return obj.usuario.nombre if obj.usuario else None
         

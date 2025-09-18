@@ -12,4 +12,5 @@ router.register(r'pacientes', views.PacienteViewSet)
 
 urlpatterns = [
     path('api/', include(router.urls)),
+    path('api/bitacora/', views.BitacoraListAPIView.as_view(), name='bitacora-list')
 ]

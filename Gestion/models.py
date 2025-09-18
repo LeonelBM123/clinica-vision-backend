@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from django.contrib.auth.hashers import make_password, check_password
 from django.core.validators import MinLengthValidator
 
@@ -220,7 +221,6 @@ class Paciente(models.Model):
 
 class ExamenOcular(models.Model):
     paciente = models.ForeignKey(Paciente, related_name='examenes', on_delete=models.CASCADE)
- 
     # Agudeza visual
     agudeza_visual_derecho = models.TextField( blank=True)
     agudeza_visual_izquierdo = models.TextField(blank=True)    
@@ -232,3 +232,37 @@ class ExamenOcular(models.Model):
     fecha = models.DateField(auto_now_add=True)  # Fecha del examen
     def __str__(self):
         return f"Examen {self.id} - {self.paciente.numero_historia_clinica}"
+
+class Bitacora(models.Model):
+    usuario = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='bitacoras'
+    )
+    accion = models.TextField(
+        help_text="Descripción legible de la acción (ej: 'médico Pedro eliminó al paciente Juanito')"
+    )
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    objeto = models.CharField(
+        max_length=200,
+        null=True,
+        blank=True,
+        help_text="Texto corto indicando el objeto afectado (ej: 'Paciente: Juanito (id:4)')"
+    )
+    extra = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="Información adicional en JSON (opcional)"
+    )
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+        verbose_name = 'Registro de bitácora'
+        verbose_name_plural = 'Bitácoras'
+
+    def str(self):
+        user = self.usuario.nombre if self.usuario else "Anónimo"
+        return f"{self.timestamp.isoformat()} — {user} — {self.accion[:80]}"
