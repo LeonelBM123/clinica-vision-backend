@@ -146,32 +146,48 @@ class PatologiasOSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class ExamenOcularSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ExamenOcular
-        fields = '__all__'  # Serializa todos los campos del examen ocular
-
-
 class PacienteSerializer(serializers.ModelSerializer):
-    # Incluye los exámenes relacionados como nested serializer
-    examenes = ExamenOcularSerializer(many=True,required=False)
-
+    nombre = serializers.CharField(source='paciente.nombre', read_only=True)
+    fecha_nacimiento = serializers.DateField(source='paciente.fecha_nacimiento', read_only=True)
+    usuario = serializers.SerializerMethodField(read_only=True)
     class Meta:
         model = Paciente
         fields = [
-            'id',
+            'paciente',
+            'usuario',
             'numero_historia_clinica',
             'nombre',
-            'apellido',
             'fecha_nacimiento',
             'alergias',
             'antecedentes_oculares',
             'estado',
             'fecha_creacion',
             'fecha_modificacion',
-            'examenes',  # incluye exámenes
+            'agudeza_visual_derecho',
+            'agudeza_visual_izquierdo',
+            'presion_ocular_derecho',
+            'presion_ocular_izquierdo',
         ]
-        read_only_fields = ['estado', 'fecha_creacion', 'fecha_modificacion']
+        read_only_fields = [
+            'estado', 'fecha_creacion', 'fecha_modificacion',
+            'nombre', 'fecha_nacimiento'
+        ]
+
+    def get_usuario(self, obj):
+        if obj.paciente:
+            return {
+                'id': obj.paciente.id,
+                'nombre': obj.paciente.nombre,
+                'correo': obj.paciente.correo,
+                'rol': obj.paciente.rol.nombre if obj.paciente.rol else None
+            }
+        return None
+
+    def validate_paciente(self, value):
+        if not value.rol or value.rol.nombre != 'PACIENTE':
+            raise serializers.ValidationError('El usuario seleccionado no tiene el rol PACIENTE.')
+        return value
+    
     
 class BitacoraSerializer(serializers.ModelSerializer):
     usuario = serializers.SerializerMethodField()

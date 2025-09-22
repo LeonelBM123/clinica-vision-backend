@@ -106,6 +106,17 @@ DATABASES = {
         'PORT': '5432',  # El puerto estándar
     }
 }
+#
+#DATABASES = {
+#    'default': {
+#        'ENGINE': 'django.db.backends.postgresql',
+#        'NAME': 'clinica-vision-local',
+#        'USER': 'postgres',
+#        'PASSWORD': '1234',
+#        'HOST': 'localhost',
+#        'PORT': '5432',
+#    }
+#}
 
 
 

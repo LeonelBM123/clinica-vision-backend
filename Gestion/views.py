@@ -79,7 +79,8 @@ class UsuarioViewSet(viewsets.ModelViewSet):
             password=data["password"]  # recibir password del request
         )
         # Guardar el Usuario normalmente
-        serializer.save()
+
+        usuario_obj = serializer.save()
         actor = get_actor_usuario_from_request(self.request)
         log_action(
             request=self.request,
@@ -277,19 +278,6 @@ def create(self, request, *args, **kwargs):
     paciente_serializer = self.get_serializer(data=request.data)
     paciente_serializer.is_valid(raise_exception=True)
     paciente = paciente_serializer.save(estado=True)
-
-    # Guardar exámenes asociados
-    if examenes_data:
-        if isinstance(examenes_data, dict):
-            # Si mandas un solo examen
-            examenes_data = [examenes_data]
-
-        for examen_data in examenes_data:
-            examen_data['paciente'] = paciente.id
-            examen_serializer = ExamenOcularSerializer(data=examen_data)
-            examen_serializer.is_valid(raise_exception=True)
-            examen_serializer.save()
-
     headers = self.get_success_headers(paciente_serializer.data)
     return Response(paciente_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
