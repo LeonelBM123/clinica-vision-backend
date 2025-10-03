@@ -1,20 +1,17 @@
-# views.py
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from rest_framework import generics
 from rest_framework import permissions
-from Gestion.utils import get_actor_usuario_from_request, log_action
+from .utils import get_actor_usuario_from_request, log_action
 from .models import *
 from .serializers import *
-# from .models import Usuario, Rol, Medico, Especialidad
-# from .serializers import UsuarioSerializer, RolSerializer, MedicoSerializer, EspecialidadSerializer
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
 from rest_framework.permissions import IsAuthenticated,AllowAny
 from rest_framework.decorators import permission_classes
-# viewsets.ModelViewSet automáticamente crea los CRUD endpoints:
+from django.utils.dateparse import parse_date
 
 class RolViewSet(viewsets.ModelViewSet):
     queryset = Rol.objects.all()
@@ -26,17 +23,6 @@ class RolViewSet(viewsets.ModelViewSet):
     # PUT /api/roles/{id}/ - Actualiza rol completo
     # PATCH /api/roles/{id}/ - Actualiza parcialmente
     # DELETE /api/roles/{id}/ - Elimina rol
-
-class EspecialidadViewSet(viewsets.ModelViewSet):
-    queryset = Especialidad.objects.all()
-    serializer_class = EspecialidadSerializer
-    
-    # GET /api/especialidades/ - Lista todas las especialidades
-    # POST /api/especialidades/ - Crea nueva especialidad
-    # GET /api/especialidades/{id}/ - Obtiene una especialidad
-    # PUT /api/especialidades/{id}/ - Actualiza especialidad completa
-    # PATCH /api/especialidades/{id}/ - Actualiza parcialmente
-    # DELETE /api/especialidades/{id}/ - Elimina especialidad
 
 class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.all()
@@ -144,143 +130,6 @@ class UsuarioViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def logout(self, request):
         return Response({"message": "Cierre de sesion exitoso"}, status=status.HTTP_200_OK)
-            
-
-class MedicoViewSet(viewsets.ModelViewSet):
-    queryset = Medico.objects.all()
-    serializer_class = MedicoSerializer
-
-    # Sobrescribir create (POST)
-    def perform_create(self, serializer):
-        medico = serializer.save()
-        
-        actor = get_actor_usuario_from_request(self.request)
-        log_action(
-            request=self.request,
-            accion=f"Creó médico {medico.medico.nombre} (id:{medico.medico.pk})",
-            objeto=f"Médico: {medico.medico.nombre} (id:{medico.medico.pk})",
-            usuario=actor
-        )
-
-    # Sobrescribir update (PUT/PATCH)
-    def perform_update(self, serializer):
-        medico = serializer.save()
-        actor = get_actor_usuario_from_request(self.request)
-        log_action(
-            request=self.request,
-            accion=f"Actualizó médico {medico.medico.nombre} (id:{medico.medico.pk})",
-            objeto=f"Médico: {medico.medico.nombre} (id:{medico.medico.pk})",
-            usuario=actor
-        )
-
-    # Sobrescribir destroy (DELETE)
-    def destroy(self, request, *args, **kwargs):
-        medico_instance = self.get_object()
-        usuario_a_eliminar = medico_instance.medico
-        actor = get_actor_usuario_from_request(request)
-
-        try:
-            user_auth = User.objects.get(email=usuario_a_eliminar.correo)
-            user_auth.delete()
-        except User.DoesNotExist:
-            pass
-        
-        # Log antes de eliminar
-        log_action(
-            request=request,
-            accion=f"Eliminó médico {usuario_a_eliminar.nombre} (id:{usuario_a_eliminar.pk})",
-            objeto=f"Médico: {usuario_a_eliminar.nombre} (id:{usuario_a_eliminar.pk})",
-            usuario=actor
-        )
-
-        # Eliminar usuario y médico
-        usuario_a_eliminar.delete()
-        medico_instance.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    # GET /api/medicos/ - Lista todos los médicos
-    # POST /api/medicos/ - Crea nuevo médico
-    # GET /api/medicos/{id}/ - Obtiene un médico
-    # PUT /api/medicos/{id}/ - Actualiza médico completo
-    # PATCH /api/medicos/{id}/ - Actualiza parcialmente
-    # DELETE /api/medicos/{id}/ - Elimina médico y su usuario asociado
-
-
-class PatologiasOViewSet(viewsets.ModelViewSet):
-    queryset = PatologiasO.objects.all()  
-    serializer_class = PatologiasOSerializer
-
-    def get_queryset(self):
-        # Por defecto, solo activos
-        if self.action == 'list':
-            return PatologiasO.objects.filter(estado=True)
-        return PatologiasO.objects.all()
-
-    def perform_destroy(self, instance):
-        # Soft delete: solo cambia estado a False y actualiza fecha_modificacion
-        instance.estado = False
-        instance.save()
-    
-    @action(detail=False, methods=['get'])
-    def eliminadas(self, request):
-        eliminadas = PatologiasO.objects.filter(estado=False)
-        serializer = self.get_serializer(eliminadas, many=True)
-        return Response(serializer.data)    
-    
-    @action(detail=True, methods=['post'])
-    def restaurar(self, request, pk=None):
-        patologia = self.get_object()
-        patologia.estado = True
-        patologia.save()
-        serializer = self.get_serializer(patologia)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    
-    # GET /api/patologias/ (listar)
-    # POST /api/patologias/ (crear)
-    # GET /api/patologias/{id}/ (detalle)
-    # PUT/PATCH /api/patologias/{id}/ (editar)
-    # DELETE /api/patologias/{id}/ (soft delete)
-    # GET /api/patologias/eliminadas/ (listar eliminadas)
-
-
-
-class PacienteViewSet(viewsets.ModelViewSet):
-    queryset = Paciente.objects.all()
-    serializer_class = PacienteSerializer
-
-    def get_queryset(self):
-        # Por defecto, solo pacientes activos
-        if self.action == 'list':
-            return Paciente.objects.filter(estado=True)
-        return Paciente.objects.all()
-
-    def perform_destroy(self, instance):
-        # Soft delete: solo cambiar estado a False
-        instance.estado = False
-        instance.save()
-
-    @action(detail=False, methods=['get'])
-    def eliminados(self, request):
-        eliminados = Paciente.objects.filter(estado=False)
-        serializer = self.get_serializer(eliminados, many=True)
-        return Response(serializer.data)
-
-    @action(detail=True, methods=['post'])
-    def restaurar(self, request, pk=None):
-        paciente = self.get_object()
-        paciente.estado = True
-        paciente.save()
-        serializer = self.get_serializer(paciente)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-def create(self, request, *args, **kwargs):
-    examenes_data = request.data.pop('examenes', None)  # 👈 usa el related_name
-    paciente_serializer = self.get_serializer(data=request.data)
-    paciente_serializer.is_valid(raise_exception=True)
-    paciente = paciente_serializer.save(estado=True)
-    headers = self.get_success_headers(paciente_serializer.data)
-    return Response(paciente_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
 
 class BitacoraListAPIView(generics.ListAPIView):
     permission_classes = [permissions.IsAdminUser]  # solo admins por seguridad
@@ -311,10 +160,3 @@ class BitacoraListAPIView(generics.ListAPIView):
 class BitacoraViewSet(viewsets.ModelViewSet):
     queryset = Bitacora.objects.all()
     serializer_class = BitacoraSerializer
-
-# GET /api/roles/ - Lista todos los roles
-# POST /api/roles/ - Crea nuevo rol
-# GET /api/roles/{id}/ - Obtiene un rol
-# PUT /api/roles/{id}/ - Actualiza rol completo
-# PATCH /api/roles/{id}/ - Actualiza parcialmente
-# DELETE /api/roles/{id}/ - Elimina rol

@@ -1,46 +1,12 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
-from django.contrib.auth.models import User
 from .models import *
-# from .models import Usuario, Rol, Medico, Especialidad
-# from .models import Usuario, Rol, Medico, Especialidad
-
-class RolSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Rol
-        fields = '__all__'
+from apps.acounts.models import Usuario, Rol
 
 class EspecialidadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Especialidad
         fields = '__all__'
-
-class UsuarioSerializer(serializers.ModelSerializer):
-    # Mostrar el nombre del rol en lugar de solo el ID
-    rol_nombre = serializers.CharField(source='rol.nombre', read_only=True)
-    
-    class Meta:
-        model = Usuario
-        fields = '__all__'
-        extra_kwargs = {'password': {'write_only': True}}
-    
-    def create(self, validated_data):
-        password = validated_data.pop('password', None)
-        # Hashear la contraseña antes de crear el usuario
-        if password:
-            validated_data['password'] = make_password(password)
-        usuario = Usuario.objects.create(**validated_data)
-        return usuario
-    
-    def update(self, instance, validated_data):
-        password = validated_data.pop('password', None)
-        # Hashear la contraseña si se proporciona
-        if password:
-            validated_data['password'] = make_password(password)
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        return instance
 
 class MedicoSerializer(serializers.ModelSerializer):
 
@@ -139,64 +105,13 @@ class MedicoSerializer(serializers.ModelSerializer):
             medico.especialidades.set(especialidades_data)
         
         return medico
-
-class PatologiasOSerializer(serializers.ModelSerializer):
+    
+class TipoAtencionSerializer(serializers.ModelSerializer):
     class Meta:
-        model = PatologiasO
+        model = Tipo_Atencion
         fields = '__all__'
 
-
-class PacienteSerializer(serializers.ModelSerializer):
-    nombre = serializers.CharField(source='paciente.nombre', read_only=True)
-    fecha_nacimiento = serializers.DateField(source='paciente.fecha_nacimiento', read_only=True)
-    usuario = serializers.SerializerMethodField(read_only=True)
+class BloqueHorarioSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Paciente
-        fields = [
-            'paciente',
-            'usuario',
-            'numero_historia_clinica',
-            'nombre',
-            'fecha_nacimiento',
-            'alergias',
-            'antecedentes_oculares',
-            'estado',
-            'fecha_creacion',
-            'fecha_modificacion',
-            'agudeza_visual_derecho',
-            'agudeza_visual_izquierdo',
-            'presion_ocular_derecho',
-            'presion_ocular_izquierdo',
-        ]
-        read_only_fields = [
-            'estado', 'fecha_creacion', 'fecha_modificacion',
-            'nombre', 'fecha_nacimiento'
-        ]
-
-    def get_usuario(self, obj):
-        if obj.paciente:
-            return {
-                'id': obj.paciente.id,
-                'nombre': obj.paciente.nombre,
-                'correo': obj.paciente.correo,
-                'rol': obj.paciente.rol.nombre if obj.paciente.rol else None
-            }
-        return None
-
-    def validate_paciente(self, value):
-        if not value.rol or value.rol.nombre != 'PACIENTE':
-            raise serializers.ValidationError('El usuario seleccionado no tiene el rol PACIENTE.')
-        return value
-    
-    
-class BitacoraSerializer(serializers.ModelSerializer):
-    usuario = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Bitacora
-        fields = ['id', 'usuario', 'accion', 'ip', 'objeto', 'extra', 'timestamp']
-
-    def get_usuario(self, obj):
-        # adapta según tu modelo Usuario: mostramos el nombre
-        return obj.usuario.nombre if obj.usuario else None
-        
+        model = Bloque_Horario
+        fields = '__all__'    

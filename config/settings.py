@@ -41,7 +41,9 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'django_extensions',
     'django',
-    'Gestion',
+    'apps.acounts',
+    'apps.doctores', 
+    'apps.citas',
 ]
 
 MIDDLEWARE = [
@@ -96,27 +98,27 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'clinica-vision',  # Nombre de la base de datos
+#         'USER': 'neondb_owner',  # Usuario por defecto
+#         'PASSWORD': 'npg_nPsh6v3fyjRK',  # Copia el password del panel
+#         'HOST': 'ep-cool-glade-ac6kkkjf-pooler.sa-east-1.aws.neon.tech',  # Host de NEON
+#         'PORT': '5432',  # El puerto estándar
+#     }
+# }
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'clinica-vision',  # Nombre de la base de datos
-        'USER': 'neondb_owner',  # Usuario por defecto
-        'PASSWORD': 'npg_nPsh6v3fyjRK',  # Copia el password del panel
-        'HOST': 'ep-cool-glade-ac6kkkjf-pooler.sa-east-1.aws.neon.tech',  # Host de NEON
-        'PORT': '5432',  # El puerto estándar
+        'NAME': 'clinica-vision-local',
+        'USER': 'postgres',
+        'PASSWORD': '1234',
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
-#
-#DATABASES = {
-#    'default': {
-#        'ENGINE': 'django.db.backends.postgresql',
-#        'NAME': 'clinica-vision-local',
-#        'USER': 'postgres',
-#        'PASSWORD': '1234',
-#        'HOST': 'localhost',
-#        'PORT': '5432',
-#    }
-#}
 
 
 
