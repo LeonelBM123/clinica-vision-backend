@@ -25,12 +25,7 @@ SECRET_KEY = 'django-insecure-)&eaqs+sd*pcbvjb&8x_p)%-hv&#sp$hp(0179lia^4a^-zryl
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    '192.168.1.111',  # Tu IP local
-    '*',  # Temporal para desarrollo (quita esto en producción)
-]
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -46,7 +41,10 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'django_extensions',
     'django',
-    'Gestion',
+    # 'Gestion', # La app antigua ya no está registrada
+    'apps.acounts',
+    'apps.doctores', 
+    'apps.citas',
 ]
 
 MIDDLEWARE = [
@@ -62,9 +60,22 @@ MIDDLEWARE = [
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
-    "http://192.168.1.111",
+    "https://clincavisionex.netlify.app"
 ]
-# fdasdfdasfasf
+
+# 👇 Permitir todos los headers
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
+
 ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [
@@ -88,14 +99,25 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'clinica-vision',  # Nombre de la base de datos
+#         'USER': 'neondb_owner',  # Usuario por defecto
+#         'PASSWORD': 'npg_nPsh6v3fyjRK',  # Copia el password del panel
+#         'HOST': 'ep-cool-glade-ac6kkkjf-pooler.sa-east-1.aws.neon.tech',  # Host de NEON
+#         'PORT': '5432',  # El puerto estándar
+#     }
+# }
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'clinica-vision',  # Nombre de la base de datos (en Supabase suele ser "postgres")
-        'USER': 'neondb_owner',  # Usuario por defecto, salvo que hayas creado otro
-        'PASSWORD': 'npg_nPsh6v3fyjRK',  # Copia el password del panel
-        'HOST': 'ep-cool-glade-ac6kkkjf-pooler.sa-east-1.aws.neon.tech',  # Host de Supabase
-        'PORT': '5432',  # El puerto estándar
+        'NAME': 'clinica-vision-local',
+        'USER': 'postgres',
+        'PASSWORD': '1234',
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
 
@@ -142,3 +164,10 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    
+}

@@ -1,13 +1,17 @@
-# views.py
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
-from .models import Usuario, Rol, Medico, Especialidad
-from .serializers import UsuarioSerializer, RolSerializer, MedicoSerializer, EspecialidadSerializer
+from rest_framework import generics
+from rest_framework import permissions
+from .utils import get_actor_usuario_from_request, log_action
+from .models import *
+from .serializers import *
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
-# viewsets.ModelViewSet automáticamente crea los CRUD endpoints:
+from rest_framework.permissions import IsAuthenticated,AllowAny
+from rest_framework.decorators import permission_classes
+from django.utils.dateparse import parse_date
 
 class RolViewSet(viewsets.ModelViewSet):
     queryset = Rol.objects.all()
@@ -19,17 +23,6 @@ class RolViewSet(viewsets.ModelViewSet):
     # PUT /api/roles/{id}/ - Actualiza rol completo
     # PATCH /api/roles/{id}/ - Actualiza parcialmente
     # DELETE /api/roles/{id}/ - Elimina rol
-
-class EspecialidadViewSet(viewsets.ModelViewSet):
-    queryset = Especialidad.objects.all()
-    serializer_class = EspecialidadSerializer
-    
-    # GET /api/especialidades/ - Lista todas las especialidades
-    # POST /api/especialidades/ - Crea nueva especialidad
-    # GET /api/especialidades/{id}/ - Obtiene una especialidad
-    # PUT /api/especialidades/{id}/ - Actualiza especialidad completa
-    # PATCH /api/especialidades/{id}/ - Actualiza parcialmente
-    # DELETE /api/especialidades/{id}/ - Elimina especialidad
 
 class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.all()
@@ -72,7 +65,27 @@ class UsuarioViewSet(viewsets.ModelViewSet):
             password=data["password"]  # recibir password del request
         )
         # Guardar el Usuario normalmente
-        serializer.save()
+
+        usuario_obj = serializer.save()
+        actor = get_actor_usuario_from_request(self.request)
+        log_action(
+            request=self.request,
+            accion=f"Creó usuario {usuario_obj.nombre} (id:{usuario_obj.id})",
+            objeto=f"Usuario: {usuario_obj.nombre} (id:{usuario_obj.id})",
+            usuario=actor
+        )
+
+    def perform_destroy(self, instance):
+        nombre = instance.nombre
+        pk = instance.pk
+        actor = get_actor_usuario_from_request(self.request)
+        instance.delete()
+        log_action(
+            request=self.request,
+            accion=f"Eliminó usuario {nombre} (id:{pk})",
+            objeto=f"Usuario: {nombre} (id:{pk})",
+            usuario=actor
+        )
 
     @action(detail=False, methods=['post'])
     def login(self, request):
@@ -96,7 +109,13 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 
         # Si quieres, puedes incluir info del perfil extendido
         usuario_perfil = get_object_or_404(Usuario, correo=correo)
-
+        actor = get_actor_usuario_from_request(request)
+        log_action(
+            request=request,
+            accion=f"Inicio de sesión del usuario {usuario_perfil.nombre} (id:{usuario_perfil.id})",
+            objeto=f"Usuario: {usuario_perfil.nombre} (id:{usuario_perfil.id})",
+            usuario=actor
+        )
         return Response(
             {
                 "message": "Login exitoso",
@@ -106,17 +125,38 @@ class UsuarioViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK
         )
-            
+        
 
-class MedicoViewSet(viewsets.ModelViewSet):
-    queryset = Medico.objects.all()
-    serializer_class = MedicoSerializer
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def logout(self, request):
+        return Response({"message": "Cierre de sesion exitoso"}, status=status.HTTP_200_OK)
+
+class BitacoraListAPIView(generics.ListAPIView):
+    permission_classes = [permissions.IsAdminUser]  # solo admins por seguridad
+    serializer_class = BitacoraSerializer
+    pagination_class = None  # puedes habilitar paginación si quieres
+
+    def get_queryset(self):
+        qs = Bitacora.objects.all()
+        start = self.request.query_params.get('start')  # YYYY-MM-DD
+        end = self.request.query_params.get('end')      # YYYY-MM-DD
+        usuario = self.request.query_params.get('usuario')
+        if start:
+            sd = parse_date(start)
+            if sd:
+                qs = qs.filter(timestampdategte=sd)
+        if end:
+            ed = parse_date(end)
+            if ed:
+                qs = qs.filter(timestampdatelte=ed)
+        if usuario:
+            # filtra por id o por nombre parcial
+            if usuario.isdigit():
+                qs = qs.filter(usuarioid=int(usuario))
+            else:
+                qs = qs.filter(usuarionombre__icontains=usuario)
+        return qs
     
-    # GET /api/medicos/ - Lista todos los médicos
-    # POST /api/medicos/ - Crea nuevo médico
-    # GET /api/medicos/{id}/ - Obtiene un médico
-    # PUT /api/medicos/{id}/ - Actualiza médico completo
-    # PATCH /api/medicos/{id}/ - Actualiza parcialmente
-    # DELETE /api/medicos/{id}/ - Elimina médico
-
-
+class BitacoraViewSet(viewsets.ModelViewSet):
+    queryset = Bitacora.objects.all()
+    serializer_class = BitacoraSerializer

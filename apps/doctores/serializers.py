@@ -1,44 +1,12 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
-from django.contrib.auth.models import User
-from .models import Usuario, Rol, Medico, Especialidad
-
-class RolSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Rol
-        fields = '__all__'
+from .models import *
+from apps.cuentas.models import Usuario, Rol
 
 class EspecialidadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Especialidad
         fields = '__all__'
-
-class UsuarioSerializer(serializers.ModelSerializer):
-    # Mostrar el nombre del rol en lugar de solo el ID
-    rol_nombre = serializers.CharField(source='rol.nombre', read_only=True)
-    
-    class Meta:
-        model = Usuario
-        fields = '__all__'
-        extra_kwargs = {'password': {'write_only': True}}
-    
-    def create(self, validated_data):
-        password = validated_data.pop('password', None)
-        # Hashear la contraseña antes de crear el usuario
-        if password:
-            validated_data['password'] = make_password(password)
-        usuario = Usuario.objects.create(**validated_data)
-        return usuario
-    
-    def update(self, instance, validated_data):
-        password = validated_data.pop('password', None)
-        # Hashear la contraseña si se proporciona
-        if password:
-            validated_data['password'] = make_password(password)
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        return instance
 
 class MedicoSerializer(serializers.ModelSerializer):
 
@@ -137,3 +105,13 @@ class MedicoSerializer(serializers.ModelSerializer):
             medico.especialidades.set(especialidades_data)
         
         return medico
+    
+class TipoAtencionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tipo_Atencion
+        fields = '__all__'
+
+class BloqueHorarioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Bloque_Horario
+        fields = '__all__'    

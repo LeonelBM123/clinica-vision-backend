@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from django.contrib.auth.hashers import make_password, check_password
 from django.core.validators import MinLengthValidator
 
@@ -102,7 +103,7 @@ class Usuario(models.Model):
         return check_password(raw_password, self.password)
     
     def __str__(self):
-        return f"{self.nombre} ({self.get_rol_display()})"
+        return f"{self.nombre} ({getattr(self.rol, 'nombre', 'Sin rol')})"
 
     class Meta:
         verbose_name = "Usuario del sistema"
@@ -113,46 +114,36 @@ class Usuario(models.Model):
             models.Index(fields=['rol', 'estado']),
         ]
 
-# Modelo Especialidad
-class Especialidad(models.Model):
-    nombre = models.CharField(
-        max_length=128,
-        unique=True,
-        verbose_name="Nombre de la especialidad"
-    )
-
-    def __str__(self):
-        return self.nombre
-
-    class Meta:
-        verbose_name = "Especialidad"
-        verbose_name_plural = "Especialidades"
-        ordering = ['nombre']
-
-# Modelo de Medico
-class Medico(models.Model):
-    medico = models.OneToOneField(
-        Usuario, 
-        on_delete=models.CASCADE,
-        primary_key=True,
-        related_name='medico_profile'
-    )
-    numero_colegiado = models.CharField(
-        max_length=64, 
-        unique=True,
-        verbose_name="Número de colegiado"
-    )
-    especialidades = models.ManyToManyField(
-        Especialidad,
-        related_name='medicos',
-        verbose_name="Especialidades médicas",
+class Bitacora(models.Model):
+    usuario = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
         blank=True,
+        related_name='bitacoras'
     )
-
-    def __str__(self):
-        return f"Dr. {self.medico.nombre} - {self.numero_colegiado}"
+    accion = models.TextField(
+        help_text="Descripción legible de la acción (ej: 'médico Pedro eliminó al paciente Juanito')"
+    )
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    objeto = models.CharField(
+        max_length=200,
+        null=True,
+        blank=True,
+        help_text="Texto corto indicando el objeto afectado (ej: 'Paciente: Juanito (id:4)')"
+    )
+    extra = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="Información adicional en JSON (opcional)"
+    )
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
-        verbose_name = "Médico"
-        verbose_name_plural = "Médicos"
-        ordering = ['medico__nombre']
+        ordering = ['-timestamp']
+        verbose_name = 'Registro de bitácora'
+        verbose_name_plural = 'Bitácoras'
+
+    def str(self):
+        user = self.usuario.nombre if self.usuario else "Anónimo"
+        return f"{self.timestamp.isoformat()} — {user} — {self.accion[:80]}"
