@@ -9,35 +9,190 @@ from .models import *
 from .serializers import *
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
-from rest_framework.permissions import IsAuthenticated,AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import permission_classes
 from django.utils.dateparse import parse_date
+
+class MultiTenantMixin:
+    """Mixin para filtrar datos por grupo del usuario actual"""
+    
+    def get_user_grupo(self):
+        """Obtiene el grupo del usuario actual"""
+        if hasattr(self.request, 'user') and self.request.user.is_authenticated:
+            try:
+                usuario = Usuario.objects.get(correo=self.request.user.email)
+                return usuario.grupo
+            except Usuario.DoesNotExist:
+                pass
+        return None
+    
+    def is_super_admin(self):
+        """Verifica si el usuario actual es super admin"""
+        if hasattr(self.request, 'user') and self.request.user.is_authenticated:
+            try:
+                usuario = Usuario.objects.get(correo=self.request.user.email)
+                return usuario.rol and usuario.rol.nombre == 'SUPER_ADMIN'
+            except Usuario.DoesNotExist:
+                pass
+        return False
+    
+    def filter_by_grupo(self, queryset):
+        """Filtra el queryset por el grupo del usuario actual"""
+        if self.is_super_admin():
+            return queryset  # Super admin ve todo
+        
+        grupo = self.get_user_grupo()
+        if grupo and hasattr(queryset.model, 'grupo'):
+            return queryset.filter(grupo=grupo)
+        
+        return queryset
+
+class GrupoViewSet(viewsets.ModelViewSet):
+    serializer_class = GrupoSerializer
+
+    def get_permissions(self):
+        """
+        Permite crear grupos sin autenticación (registro público)
+        Pero requiere autenticación para otras operaciones
+        """
+        if self.action == 'create':
+            permission_classes = [AllowAny]  # Permite crear sin autenticación
+        else:
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+    
+    def get_queryset(self):
+        # Solo super admins pueden ver/gestionar grupos
+        if self.is_super_admin():
+            return Grupo.objects.all()
+        else:
+            # Usuarios normales solo ven su propio grupo
+            grupo = self.get_user_grupo()
+            if grupo:
+                return Grupo.objects.filter(id=grupo.id)
+            return Grupo.objects.none()
+    
+    def is_super_admin(self):
+        if not self.request.user.is_authenticated:
+            return False
+        try:
+            usuario = Usuario.objects.get(correo=self.request.user.email)
+            return usuario.rol and usuario.rol.nombre == 'SUPER_ADMIN'
+        except Usuario.DoesNotExist:
+            return False
+    
+    def get_user_grupo(self):
+        if not self.request.user.is_authenticated:
+            return None
+        try:
+            usuario = Usuario.objects.get(correo=self.request.user.email)
+            return usuario.grupo
+        except Usuario.DoesNotExist:
+            return None
+    
+    def perform_create(self, serializer):
+        """Crear grupo y administrador automáticamente"""
+        grupo = serializer.save()
+        
+        # Log de creación del grupo
+        log_action(
+            request=self.request,
+            accion=f"Se registró la nueva clínica {grupo.nombre}",
+            objeto=f"Grupo: {grupo.nombre} (id:{grupo.id})",
+            usuario=None  # Registro público, sin usuario
+        )
+    
+    @action(detail=True, methods=['post'])
+    def suspender(self, request, pk=None):
+        """Suspende un grupo (solo super admin)"""
+        if not self.is_super_admin():
+            return Response(
+                {'error': 'No tienes permisos para esta acción'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        grupo = self.get_object()
+        grupo.estado = 'SUSPENDIDO'
+        grupo.fecha_suspension = timezone.now()
+        grupo.save()
+        
+        return Response({'message': 'Grupo suspendido correctamente'})
+    
+    @action(detail=True, methods=['post'])
+    def activar(self, request, pk=None):
+        """Activa un grupo (solo super admin)"""
+        if not self.is_super_admin():
+            return Response(
+                {'error': 'No tienes permisos para esta acción'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        grupo = self.get_object()
+        grupo.estado = 'ACTIVO'
+        grupo.fecha_suspension = None
+        grupo.save()
+        
+        return Response({'message': 'Grupo activado correctamente'})
+
+class PagoViewSet(MultiTenantMixin, viewsets.ModelViewSet):
+    serializer_class = PagoSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        queryset = Pago.objects.all()
+        return self.filter_by_grupo(queryset)
+    
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+    
+    @action(detail=True, methods=['post'])
+    def marcar_pagado(self, request, pk=None):
+        """Marca un pago como pagado"""
+        pago = self.get_object()
+        pago.marcar_como_pagado()
+        
+        actor = get_actor_usuario_from_request(request)
+        log_action(
+            request=request,
+            accion=f"Marcó como pagado el pago {pago.id} del grupo {pago.grupo.nombre}",
+            objeto=f"Pago: {pago.id} - {pago.grupo.nombre}",
+            usuario=actor
+        )
+        
+        return Response({'message': 'Pago marcado como pagado correctamente'})
 
 class RolViewSet(viewsets.ModelViewSet):
     queryset = Rol.objects.all()
     serializer_class = RolSerializer
-    
-    # GET /api/roles/ - Lista todos los roles
-    # POST /api/roles/ - Crea nuevo rol
-    # GET /api/roles/{id}/ - Obtiene un rol
-    # PUT /api/roles/{id}/ - Actualiza rol completo
-    # PATCH /api/roles/{id}/ - Actualiza parcialmente
-    # DELETE /api/roles/{id}/ - Elimina rol
+    permission_classes = [IsAuthenticated]
 
-class UsuarioViewSet(viewsets.ModelViewSet):
-    queryset = Usuario.objects.all()
+class UsuarioViewSet(MultiTenantMixin, viewsets.ModelViewSet):
     serializer_class = UsuarioSerializer
+
+    def get_permissions(self):
+        """
+        Permite crear usuarios y login sin autenticación
+        Requiere autenticación para otras operaciones
+        """
+        if self.action in ['create', 'login']:
+            permission_classes = [AllowAny]
+        else:
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
     
-    # GET /api/usuarios/ - Lista todos los usuarios
-    # POST /api/usuarios/ - Crea nuevo usuario
-    # GET /api/usuarios/{id}/ - Obtiene un usuario
-    # PUT /api/usuarios/{id}/ - Actualiza usuario completo
-    # PATCH /api/usuarios/{id}/ - Actualiza parcialmente
-    # DELETE /api/usuarios/{id}/ - Elimina usuario
+    def get_queryset(self):
+        queryset = Usuario.objects.all()
+        return self.filter_by_grupo(queryset)
+    
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
     
     @action(detail=True, methods=['post'])
     def cambiar_password(self, request, pk=None):
-        # Endpoint especial para cambiar contraseña
         usuario = self.get_object()
         nuevo_password = request.data.get('password')
 
@@ -52,20 +207,6 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         return Response({'message': 'Contraseña actualizada correctamente'}, status=status.HTTP_200_OK)
 
     def perform_create(self, serializer):
-        """
-        Crea un User cada vez que se crea un Usuario, sin asociarlo.
-        """
-        data = serializer.validated_data
-
-        # Crear el User de Django (para login/tokens)
-        User.objects.create_user(
-
-            username=data["correo"],  # usar correo como username
-            email=data["correo"],
-            password=data["password"]  # recibir password del request
-        )
-        # Guardar el Usuario normalmente
-
         usuario_obj = serializer.save()
         actor = get_actor_usuario_from_request(self.request)
         log_action(
@@ -88,27 +229,53 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         )
 
     @action(detail=False, methods=['post'])
+    @permission_classes([AllowAny])
     def login(self, request):
         correo = request.data.get('correo')
         password = request.data.get('password')
+        
         if not correo or not password:
             return Response(
                 {"error": "Correo y password son requeridos"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        # Buscar usuario en el modelo User usando el email
-        user = get_object_or_404(User, email=correo)
+        
+        try:
+            # Buscar usuario en el modelo User usando el email
+            user = User.objects.get(email=correo)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "Usuario no encontrado"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
         # Validar contraseña
         if not user.check_password(password):
             return Response(
                 {"error": "Contraseña incorrecta"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+        # Obtener perfil del usuario
+        try:
+            usuario_perfil = Usuario.objects.get(correo=correo)
+        except Usuario.DoesNotExist:
+            return Response(
+                {"error": "Perfil de usuario no encontrado"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Verificar si puede acceder al sistema
+        if not usuario_perfil.puede_acceder_sistema():
+            return Response(
+                {"error": "Tu grupo no tiene acceso al sistema. Contacta al administrador."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         # Obtener o crear token
         token, created = Token.objects.get_or_create(user=user)
-
-        # Si quieres, puedes incluir info del perfil extendido
-        usuario_perfil = get_object_or_404(Usuario, correo=correo)
+        
+        # Log del login
         actor = get_actor_usuario_from_request(request)
         log_action(
             request=request,
@@ -116,47 +283,57 @@ class UsuarioViewSet(viewsets.ModelViewSet):
             objeto=f"Usuario: {usuario_perfil.nombre} (id:{usuario_perfil.id})",
             usuario=actor
         )
+        
         return Response(
             {
                 "message": "Login exitoso",
-                "usuario_id": usuario_perfil.id if usuario_perfil else None,
+                "usuario_id": usuario_perfil.id,
                 "token": token.key,
-                "rol": usuario_perfil.rol.get_nombre_display() if usuario_perfil and usuario_perfil.rol else None
+                "rol": usuario_perfil.rol.get_nombre_display() if usuario_perfil.rol else None,
+                "grupo_id": usuario_perfil.grupo.id if usuario_perfil.grupo else None,
+                "grupo_nombre": usuario_perfil.grupo.nombre if usuario_perfil.grupo else None,
+                "puede_acceder": usuario_perfil.puede_acceder_sistema()
             },
             status=status.HTTP_200_OK
         )
-        
 
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def logout(self, request):
-        return Response({"message": "Cierre de sesion exitoso"}, status=status.HTTP_200_OK)
+        return Response({"message": "Cierre de sesión exitoso"}, status=status.HTTP_200_OK)
 
-class BitacoraListAPIView(generics.ListAPIView):
-    permission_classes = [permissions.IsAdminUser]  # solo admins por seguridad
+class BitacoraListAPIView(MultiTenantMixin, generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
     serializer_class = BitacoraSerializer
-    pagination_class = None  # puedes habilitar paginación si quieres
+    pagination_class = None
 
     def get_queryset(self):
         qs = Bitacora.objects.all()
-        start = self.request.query_params.get('start')  # YYYY-MM-DD
-        end = self.request.query_params.get('end')      # YYYY-MM-DD
+        qs = self.filter_by_grupo(qs)
+        
+        # Filtros adicionales
+        start = self.request.query_params.get('start')
+        end = self.request.query_params.get('end')
         usuario = self.request.query_params.get('usuario')
+        
         if start:
             sd = parse_date(start)
             if sd:
-                qs = qs.filter(timestampdategte=sd)
+                qs = qs.filter(timestamp__date__gte=sd)
         if end:
             ed = parse_date(end)
             if ed:
-                qs = qs.filter(timestampdatelte=ed)
+                qs = qs.filter(timestamp__date__lte=ed)
         if usuario:
-            # filtra por id o por nombre parcial
             if usuario.isdigit():
-                qs = qs.filter(usuarioid=int(usuario))
+                qs = qs.filter(usuario__id=int(usuario))
             else:
-                qs = qs.filter(usuarionombre__icontains=usuario)
+                qs = qs.filter(usuario__nombre__icontains=usuario)
         return qs
-    
-class BitacoraViewSet(viewsets.ModelViewSet):
-    queryset = Bitacora.objects.all()
+
+class BitacoraViewSet(MultiTenantMixin, viewsets.ModelViewSet):
     serializer_class = BitacoraSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        qs = Bitacora.objects.all()
+        return self.filter_by_grupo(qs)
