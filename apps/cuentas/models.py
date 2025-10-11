@@ -194,7 +194,7 @@ class Rol(models.Model):
         ('paciente', 'Paciente'),
         ('medico', 'Médico'),
         ('administrador', 'Administrador'),
-        ('superAdmin', 'Super Administrador'), # Nuevo rol para gestionar grupos
+        ('superAdmin', 'Super Administrador'), 
     ]
 
     nombre = models.CharField(
@@ -300,7 +300,7 @@ class Usuario(models.Model):
     def puede_acceder_sistema(self):
         """Verifica si el usuario puede acceder al sistema"""
         # Super admin siempre puede acceder
-        if self.rol and self.rol.nombre == 'SUPER_ADMIN':
+        if self.rol and self.rol.nombre == 'superAdmin':
             return True
         
         # Usuarios normales solo si su grupo está activo

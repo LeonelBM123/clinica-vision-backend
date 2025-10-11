@@ -31,7 +31,7 @@ class MultiTenantMixin:
         if hasattr(self.request, 'user') and self.request.user.is_authenticated:
             try:
                 usuario = Usuario.objects.get(correo=self.request.user.email)
-                return usuario.rol and usuario.rol.nombre == 'SUPER_ADMIN'
+                return usuario.rol and usuario.rol.nombre == 'superAdmin'  # Cambiar aquí también
             except Usuario.DoesNotExist:
                 pass
         return False
@@ -77,7 +77,7 @@ class GrupoViewSet(viewsets.ModelViewSet):
             return False
         try:
             usuario = Usuario.objects.get(correo=self.request.user.email)
-            return usuario.rol and usuario.rol.nombre == 'SUPER_ADMIN'
+            return usuario.rol and usuario.rol.nombre == 'superAdmin'
         except Usuario.DoesNotExist:
             return False
     
@@ -170,7 +170,6 @@ class RolViewSet(viewsets.ModelViewSet):
 
 class UsuarioViewSet(MultiTenantMixin, viewsets.ModelViewSet):
     serializer_class = UsuarioSerializer
-
     def get_permissions(self):
         """
         Permite crear usuarios y login sin autenticación
@@ -241,7 +240,6 @@ class UsuarioViewSet(MultiTenantMixin, viewsets.ModelViewSet):
             )
         
         try:
-            # Buscar usuario en el modelo User usando el email
             user = User.objects.get(email=correo)
         except User.DoesNotExist:
             return Response(
@@ -249,14 +247,12 @@ class UsuarioViewSet(MultiTenantMixin, viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # Validar contraseña
         if not user.check_password(password):
             return Response(
                 {"error": "Contraseña incorrecta"},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Obtener perfil del usuario
         try:
             usuario_perfil = Usuario.objects.get(correo=correo)
         except Usuario.DoesNotExist:
@@ -265,17 +261,16 @@ class UsuarioViewSet(MultiTenantMixin, viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # Verificar si puede acceder al sistema
-        if not usuario_perfil.puede_acceder_sistema():
+        if usuario_perfil.rol and usuario_perfil.rol.nombre == 'superAdmin':
+            pass  # Super admin siempre puede acceder
+        elif not usuario_perfil.puede_acceder_sistema():
             return Response(
                 {"error": "Tu grupo no tiene acceso al sistema. Contacta al administrador."},
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        # Obtener o crear token
         token, created = Token.objects.get_or_create(user=user)
         
-        # Log del login
         actor = get_actor_usuario_from_request(request)
         log_action(
             request=request,
@@ -289,7 +284,7 @@ class UsuarioViewSet(MultiTenantMixin, viewsets.ModelViewSet):
                 "message": "Login exitoso",
                 "usuario_id": usuario_perfil.id,
                 "token": token.key,
-                "rol": usuario_perfil.rol.get_nombre_display() if usuario_perfil.rol else None,
+                "rol": usuario_perfil.rol.nombre,  # Envía el valor interno, no el display
                 "grupo_id": usuario_perfil.grupo.id if usuario_perfil.grupo else None,
                 "grupo_nombre": usuario_perfil.grupo.nombre if usuario_perfil.grupo else None,
                 "puede_acceder": usuario_perfil.puede_acceder_sistema()
