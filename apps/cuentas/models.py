@@ -290,6 +290,8 @@ class Usuario(models.Model):
         blank=True
     )
 
+    token_reset_password = models.CharField(max_length=64, null=True, blank=True)
+
     def set_password(self, raw_password):
         self.password = make_password(raw_password)
         self.save()
