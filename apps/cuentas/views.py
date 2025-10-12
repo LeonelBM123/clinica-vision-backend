@@ -12,6 +12,9 @@ from django.contrib.auth.models import User
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import permission_classes
 from django.utils.dateparse import parse_date
+import secrets
+from django.core.mail import send_mail
+from django.utils import timezone
 
 class MultiTenantMixin:
     """Mixin para filtrar datos por grupo del usuario actual"""
@@ -175,7 +178,7 @@ class UsuarioViewSet(MultiTenantMixin, viewsets.ModelViewSet):
         Permite crear usuarios y login sin autenticación
         Requiere autenticación para otras operaciones
         """
-        if self.action in ['create', 'login']:
+        if self.action in ['create', 'login','solicitar_reset_token', 'nueva_password']:
             permission_classes = [AllowAny]
         else:
             permission_classes = [IsAuthenticated]
@@ -316,6 +319,77 @@ class UsuarioViewSet(MultiTenantMixin, viewsets.ModelViewSet):
                 {"error": f"Ocurrió un error al cerrar sesión: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @action(detail=False, methods=['post'])
+    @permission_classes([AllowAny])
+    def solicitar_reset_token(self, request):
+        correo = request.data.get('correo')
+        if not correo:
+            return Response(
+                {"error": "El correo es requerido"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            usuario = Usuario.objects.get(correo=correo)
+            token_recuperacion = secrets.token_urlsafe(16)
+            usuario.token_reset_password = token_recuperacion
+            usuario.save()
+
+            send_mail(
+                subject="Solicitud de restablecimiento de contraseña",
+                message=(
+                    f"Hola {usuario.nombre},\n\n"
+                    f"Usa este token para restablecer tu contraseña:\n\n"
+                    f"{token_recuperacion}\n\n"
+                ),
+                from_email="noreply@clinicavisionx.com",
+                recipient_list=[usuario.correo],
+                fail_silently=False,
+            )
+
+            return Response(
+                {"message": "Token enviado al correo correctamente"},
+                status=status.HTTP_200_OK
+            )
+
+        except Usuario.DoesNotExist:
+            return Response(
+                {"error": "No existe un usuario con ese correo"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    @action(detail=False, methods=['post'])
+    def nueva_password(self, request):
+        correo = request.data.get('correo')
+        token = request.data.get('reset_token')
+        nueva_password = request.data.get('new_password')
+
+        if not correo or not token or not nueva_password:
+            return Response(
+                {"error": "Correo, token y nueva contraseña son requeridos"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            usuario = Usuario.objects.get(
+                correo=correo, token_reset_password=token
+            )
+            usuario.set_password(nueva_password)
+            usuario.token_reset_password = ""
+            usuario.save()
+
+            return Response(
+                {"message": "Contraseña actualizada correctamente"},
+                status=status.HTTP_200_OK
+            )
+
+        except Usuario.DoesNotExist:
+            return Response(
+                {"error": "Token o correo inválido"},
+                status=status.HTTP_404_NOT_FOUND
+            )    
+
 
 class BitacoraListAPIView(MultiTenantMixin, generics.ListAPIView):
     permission_classes = [IsAuthenticated]
