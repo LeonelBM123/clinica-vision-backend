@@ -1,6 +1,7 @@
 from django.db import models
 from apps.historiasDiagnosticos.models import Paciente
 from apps.doctores.models import Bloque_Horario
+from apps.cuentas.models import Grupo
 class Cita_Medica(models.Model):
 
     fecha = models.DateField(help_text="Fecha de la cita médica")
@@ -14,6 +15,13 @@ class Cita_Medica(models.Model):
   
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='citas')
     bloque_horario = models.ForeignKey(Bloque_Horario, on_delete=models.CASCADE, related_name='citas')
+    grupo = models.ForeignKey(
+        Grupo,
+        on_delete=models.CASCADE,
+        related_name='citas_medicas',
+        verbose_name="Grupo al que pertenece",
+    )
+    
     class Meta:
         verbose_name = "Cita Médica"
         verbose_name_plural = "Citas Médicas"

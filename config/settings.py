@@ -41,7 +41,6 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'django_extensions',
     'django',
-    # 'Gestion', # La app antigua ya no está registrada
     'apps.cuentas',
     'apps.doctores', 
     'apps.citas_pagos',

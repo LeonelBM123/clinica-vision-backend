@@ -1,5 +1,7 @@
 from rest_framework import serializers
+from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
+from django.db import transaction
 from .models import *
 from apps.cuentas.models import Usuario, Rol
 
@@ -9,102 +11,51 @@ class EspecialidadSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class MedicoSerializer(serializers.ModelSerializer):
-
-    # Campos para crear usuario nuevo
-    nombre_usuario = serializers.CharField(write_only=True, required=False)
-    correo_usuario = serializers.EmailField(write_only=True, required=False)
-    password_usuario = serializers.CharField(write_only=True, required=False)
-    sexo_usuario = serializers.CharField(write_only=True, required=False)
-    fecha_nacimiento_usuario = serializers.DateField(write_only=True, required=False)
-    telefono_usuario = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    direccion_usuario = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    rol_nombre = serializers.CharField(source='rol.nombre', read_only=True)
+    grupo_nombre = serializers.CharField(source='grupo.nombre', read_only=True)
+    puede_acceder = serializers.SerializerMethodField()
+    especialidades_nombres = serializers.SerializerMethodField()
+    especialidades = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Especialidad.objects.all(),
+        required=False
+    )
     
-    # Info del médico para lectura
-    info_medico = serializers.SerializerMethodField(read_only=True)
-    especialidades_nombres = serializers.SerializerMethodField(read_only=True)
-
     class Meta:
         model = Medico
-        fields = [
-            'medico', 
-            'numero_colegiado', 
-            'especialidades',
-            'nombre_usuario', 'correo_usuario', 'password_usuario',
-            'sexo_usuario', 'fecha_nacimiento_usuario', 
-            'telefono_usuario', 'direccion_usuario',
-            'info_medico', 'especialidades_nombres'
-        ]
+        fields = '__all__'
         extra_kwargs = {
-            'medico': {'required': False}
+            'password': {'write_only': True},
+            # REMUEVE 'grupo': {'required': True} - Ahora se asigna automáticamente
         }
     
-    def get_info_medico(self, obj):
-        if obj.medico:
-            return {
-                'id': obj.medico.id,
-                'nombre': obj.medico.nombre,
-                'correo': obj.medico.correo,
-                'sexo': obj.medico.sexo,
-                'fecha_nacimiento': obj.medico.fecha_nacimiento,
-                'telefono': obj.medico.telefono,
-                'direccion': obj.medico.direccion,
-                'rol': obj.medico.rol.nombre if obj.medico.rol else None
-            }
-        return None
+    def get_puede_acceder(self, obj):
+        return obj.puede_acceder_sistema()
     
     def get_especialidades_nombres(self, obj):
         return [esp.nombre for esp in obj.especialidades.all()]
-
-    def create(self, validated_data):
-        # Extraer datos de usuario si se proporcionan
-        usuario_data = {}
-        usuario_fields = [
-            'nombre_usuario', 'correo_usuario', 'password_usuario',
-            'sexo_usuario', 'fecha_nacimiento_usuario', 
-            'telefono_usuario', 'direccion_usuario'
-        ]
+    
+    def update(self, instance, validated_data):
+        # Extraer especialidades antes de actualizar
+        especialidades_data = validated_data.pop('especialidades', None)
         
-        for field in usuario_fields:
-            if field in validated_data:
-                field_name = field.replace('_usuario', '')
-                usuario_data[field_name] = validated_data.pop(field)
+        # Hashear la contraseña si se proporciona
+        password = validated_data.pop('password', None)
+        if password:
+            from django.contrib.auth.hashers import make_password
+            validated_data['password'] = make_password(password)
         
-        # Extraer especialidades 
-        especialidades_data = validated_data.pop('especialidades', [])
-
-        try:
-            rol_medico = Rol.objects.get(nombre='MÉDICO')
-        except Rol.DoesNotExist:
-            raise serializers.ValidationError("El rol MÉDICO no existe. Crearlo primero.")
+        # Actualizar campos normales
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
         
-        # Si se proporcionaron datos de usuario, crearlo
-        if usuario_data:
-            usuario_data['rol'] = rol_medico
-            
-            if 'password' in usuario_data:
-                usuario_data['password'] = make_password(usuario_data['password'])
-            
-            usuario = Usuario.objects.create(**usuario_data)
-            validated_data['medico'] = usuario
+        instance.save()
         
-        elif 'medico' in validated_data:
-            usuario_existente = validated_data['medico']
-            # ACTUALIZAR el rol del usuario existente a MÉDICO
-            usuario_existente.rol = rol_medico
-            usuario_existente.save()
-        else:
-            raise serializers.ValidationError({
-                "medico": "Se requiere un usuario (existente o nuevo)"
-            })
+        # Actualizar especialidades si se proporcionaron
+        if especialidades_data is not None:
+            instance.especialidades.set(especialidades_data)
         
-        # Crear el médico primero
-        medico = Medico.objects.create(**validated_data)
-        
-        # Agregar especialidades
-        if especialidades_data:
-            medico.especialidades.set(especialidades_data)
-        
-        return medico
+        return instance
     
 class TipoAtencionSerializer(serializers.ModelSerializer):
     class Meta:

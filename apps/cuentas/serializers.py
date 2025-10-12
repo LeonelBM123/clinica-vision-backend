@@ -56,7 +56,7 @@ class GrupoSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({'admin_correo': 'Ya existe un usuario con este correo electrónico'})
         grupo = Grupo.objects.create(**validated_data)
         try:
-            rol_admin = Rol.objects.get(nombre='ADMIN')
+            rol_admin = Rol.objects.get(nombre='administrador')
             django_user = User.objects.create_user(
                 username=admin_data['correo'],
                 email=admin_data['correo'],
