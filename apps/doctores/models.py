@@ -1,6 +1,6 @@
-
+#pendiente
 from django.db import models
-from apps.cuentas.models import Usuario
+from apps.cuentas.models import Usuario, Grupo
 
 # Modelo Especialidad
 class Especialidad(models.Model):
@@ -19,18 +19,13 @@ class Especialidad(models.Model):
         ordering = ['nombre']
 
 # Modelo de Medico
-class Medico(models.Model):
-    medico = models.OneToOneField(
-        Usuario, 
-        on_delete=models.CASCADE,
-        primary_key=True,
-        related_name='medico_profile'
-    )
+class Medico(Usuario):
     numero_colegiado = models.CharField(
         max_length=64, 
         unique=True,
         verbose_name="Número de colegiado"
     )
+
     especialidades = models.ManyToManyField(
         Especialidad,
         related_name='medicos',
@@ -38,13 +33,13 @@ class Medico(models.Model):
         blank=True,
     )
 
-    def __str__(self):
-        return f"Dr. {self.medico.nombre} - {self.numero_colegiado}"
-
     class Meta:
         verbose_name = "Médico"
         verbose_name_plural = "Médicos"
-        ordering = ['medico__nombre']
+        ordering = ['nombre']
+
+    def __str__(self):
+        return f"Dr. {self.nombre} - {self.numero_colegiado}"
 
 
 #las nuevas clases creadas de la base 
@@ -71,6 +66,12 @@ class Bloque_Horario(models.Model):
     fecha_modificacion = models.DateTimeField(auto_now=True)
     medico = models.ForeignKey(Medico, on_delete=models.CASCADE, related_name='bloques_horarios')
     tipo_atencion = models.ForeignKey('Tipo_Atencion', on_delete=models.SET_NULL, null=True, blank=True, related_name='bloques_horarios')
+    grupo = models.ForeignKey(
+        Grupo,
+        on_delete=models.CASCADE,
+        related_name='bloques_horarios',
+        verbose_name="Grupo al que pertenece",
+    )
     class Meta:
         verbose_name = "Bloque Horario"
         verbose_name_plural = "Bloques Horarios"
@@ -84,7 +85,12 @@ class Tipo_Atencion(models.Model):
     nombre = models.CharField(max_length=128, unique=True)
     descripcion = models.TextField(blank=True)
     estado = models.BooleanField(default=True)
-
+    grupo = models.ForeignKey(
+        Grupo,
+        on_delete=models.CASCADE,
+        related_name='tipos_atencion',
+        verbose_name="Grupo al que pertenece",
+    )
     class Meta:
         verbose_name = "Tipo de Atención"
         verbose_name_plural = "Tipos de Atención"
