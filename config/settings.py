@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'apps.cuentas',
     'apps.doctores', 
     'apps.citas_pagos',
+    'apps.historiasDiagnosticos',
 ]
 
 MIDDLEWARE = [
@@ -60,6 +61,7 @@ MIDDLEWARE = [
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
+    "http://127.0.0.1:5173",
     "https://clincavisionex.netlify.app"
 ]
 

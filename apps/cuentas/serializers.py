@@ -122,34 +122,31 @@ class UsuarioSerializer(serializers.ModelSerializer):
         return obj.puede_acceder_sistema()
     
     def validate(self, data):
-        # Validar que el usuario no se registre en un grupo diferente al permitido
         request = self.context.get('request')
-        if request and request.user:
+        # Solo valida grupo si hay usuario autenticado
+        if request and hasattr(request.user, 'email') and request.user.is_authenticated:
             try:
                 usuario_creador = Usuario.objects.get(correo=request.user.email)
-                
                 # Si no es super admin, debe usar su mismo grupo
-                if usuario_creador.rol.nombre != 'SUPER_ADMIN':
+                if usuario_creador.rol.nombre != 'superAdmin':
                     if 'grupo' in data and data['grupo'] != usuario_creador.grupo:
                         raise serializers.ValidationError({
                             'grupo': 'No puedes registrar usuarios en otros grupos'
                         })
                     # Forzar el grupo del creador
                     data['grupo'] = usuario_creador.grupo
-                    
             except Usuario.DoesNotExist:
                 pass
-        
+        # Si no hay usuario autenticado, no valida grupo
         return data
     
     def create(self, validated_data):
-        # Auto-asignar grupo del usuario que está creando si no se especifica
         request = self.context.get('request')
-        if request and request.user:
+        # Solo asigna grupo si hay usuario autenticado
+        if request and hasattr(request.user, 'email') and request.user.is_authenticated:
             try:
                 usuario_creador = Usuario.objects.get(correo=request.user.email)
-                # Si el creador no es super admin, asignar su mismo grupo
-                if (usuario_creador.rol.nombre != 'SUPER_ADMIN' and 
+                if (usuario_creador.rol.nombre != 'superAdmin' and 
                     usuario_creador.grupo and 
                     'grupo' not in validated_data):
                     validated_data['grupo'] = usuario_creador.grupo
@@ -157,7 +154,6 @@ class UsuarioSerializer(serializers.ModelSerializer):
                 pass
         
         password = validated_data.pop('password', None)
-        # Hashear la contraseña antes de crear el usuario
         if password:
             validated_data['password'] = make_password(password)
         
